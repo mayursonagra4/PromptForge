@@ -1,0 +1,9 @@
+[
+  {
+    "id": "promptforge-redis",
+    "name": "PromptForge Redis",
+    "host": "promptforge-redis",
+    "port": 6379,
+    "ssl": false
+  }
+]
