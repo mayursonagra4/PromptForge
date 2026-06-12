@@ -1,11 +1,29 @@
 package com.mayur.distributed_promptforge.intelligence_service.service.impl;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.mayur.distributed_promptforge.common_lib.dto.FileNode;
 import com.mayur.distributed_promptforge.common_lib.enums.ChatEventStatus;
 import com.mayur.distributed_promptforge.common_lib.enums.ChatEventType;
 import com.mayur.distributed_promptforge.common_lib.enums.MessageRole;
 import com.mayur.distributed_promptforge.common_lib.event.FileStoreRequestEvent;
 import com.mayur.distributed_promptforge.common_lib.security.AuthUtil;
-import com.mayur.distributed_promptforge.common_lib.dto.FileNode;
 import com.mayur.distributed_promptforge.intelligence_service.client.WorkspaceClient;
 import com.mayur.distributed_promptforge.intelligence_service.dto.chat.StreamResponse;
 import com.mayur.distributed_promptforge.intelligence_service.entity.ChatEvent;
@@ -19,31 +37,15 @@ import com.mayur.distributed_promptforge.intelligence_service.llm.TokenUsageAudi
 import com.mayur.distributed_promptforge.intelligence_service.repository.ChatEventRepository;
 import com.mayur.distributed_promptforge.intelligence_service.repository.ChatMessageRepository;
 import com.mayur.distributed_promptforge.intelligence_service.repository.ChatSessionRepository;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
 import com.mayur.distributed_promptforge.intelligence_service.service.AiGenerationService;
 import com.mayur.distributed_promptforge.intelligence_service.service.RateLimitService;
 import com.mayur.distributed_promptforge.intelligence_service.service.UsageService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @RequiredArgsConstructor
@@ -64,7 +66,6 @@ public class AiGenerationServiceImpl implements AiGenerationService {
     private final WorkspaceClient workspaceClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final TransactionTemplate transactionTemplate;
-
 
     @Override
     @PreAuthorize("@security.canEditProject(#p1)")
@@ -104,7 +105,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
         AtomicReference<Long> endTime = new AtomicReference<>(0L);
         AtomicReference<Integer> chunkCount = new AtomicReference<>(0);
         AtomicBoolean finalized = new AtomicBoolean(false);
-        String usageTrackingKey = UUID.randomUUID().toString();
+        AtomicReference<org.springframework.ai.chat.metadata.Usage> streamUsage = new AtomicReference<>(null);
 
         return chatClient.prompt()
                 .system(PromptUtils.CODE_GENERATION_SYSTEM_PROMPT)
@@ -112,7 +113,6 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                 .messages(chatHistory)
                 .user(userMessage)
                 .tools(codeGenerationTools)
-                .advisors(spec -> spec.param(TokenUsageAuditAdvisor.USAGE_TRACKING_KEY, usageTrackingKey))
                 .stream()
                 .chatResponse()
                 .retryWhen(
@@ -121,10 +121,14 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                                 .filter(this::isRetryableTransientError)
                                 .doBeforeRetry(signal -> log.warn(
                                         "AI upstream transient failure. Retrying attempt={} projectId={} userId={}",
-                                        signal.totalRetries() + 1, projectId, userId
-                                ))
-                )
+                                        signal.totalRetries() + 1, projectId, userId)))
                 .doOnNext(response -> {
+                    if (response.getMetadata() != null && response.getMetadata().getUsage() != null) {
+                        org.springframework.ai.chat.metadata.Usage usage = response.getMetadata().getUsage();
+                        if (usage.getTotalTokens() != null && usage.getTotalTokens() > 0) {
+                            streamUsage.set(usage);
+                        }
+                    }
                     if (response.getResults() != null && !response.getResults().isEmpty()) {
                         String content = sanitizeAiText(response.getResult().getOutput().getText());
                         if (content.isEmpty()) {
@@ -132,7 +136,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                         }
                         chunkCount.set(chunkCount.get() + 1);
 
-                        if(endTime.get() == 0) { // first non-empty chunk received
+                        if (endTime.get() == 0) { // first non-empty chunk received
                             endTime.set(System.currentTimeMillis());
                             long firstTokenLatencyMs = endTime.get() - startTime.get();
                             log.info("AI first chunk received: projectId={}, userId={}, latencyMs={}",
@@ -142,7 +146,8 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                     }
 
                 })
-                .doOnError(error -> log.error("Error during streaming: projectId={}, userId={}", projectId, userId, error))
+                .doOnError(
+                        error -> log.error("Error during streaming: projectId={}, userId={}", projectId, userId, error))
                 .doFinally(signalType -> {
                     if (!finalized.compareAndSet(false, true)) {
                         return;
@@ -157,12 +162,14 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                             log.warn("AI stream finished with zero chunks: projectId={}, userId={}, signal={}",
                                     projectId, userId, signalType);
                         } else {
-                            log.info("AI stream finished: projectId={}, userId={}, signal={}, chunks={}, responseChars={}",
+                            log.info(
+                                    "AI stream finished: projectId={}, userId={}, signal={}, chunks={}, responseChars={}",
                                     projectId, userId, signalType, chunkCount.get(), fullResponseBuffer.length());
                         }
 
-                        TokenUsageAuditAdvisor.TokenUsageSnapshot usageSnapshot = TokenUsageAuditAdvisor.consume(usageTrackingKey);
-                        finalizeChats(userMessage, chatSession, fullResponseBuffer.toString(), duration, usageSnapshot, userId);
+                        org.springframework.ai.chat.metadata.Usage usage = streamUsage.get();
+                        finalizeChats(userMessage, chatSession, fullResponseBuffer.toString(), duration, usage,
+                                userId);
                     });
                 })
                 .map(response -> {
@@ -279,7 +286,8 @@ public class AiGenerationServiceImpl implements AiGenerationService {
 
         try {
             long seconds = Long.parseLong(retryAfter.trim());
-            if (seconds <= 0) return fallback;
+            if (seconds <= 0)
+                return fallback;
             // Keep cooldown sane (max 10 minutes)
             return Math.min(seconds * 1000L, 10 * 60 * 1000L);
         } catch (NumberFormatException ignored) {
@@ -310,16 +318,22 @@ public class AiGenerationServiceImpl implements AiGenerationService {
     }
 
     private void finalizeChats(String userMessage, ChatSession chatSession, String fullText, Long duration,
-                               TokenUsageAuditAdvisor.TokenUsageSnapshot usageSnapshot, Long userId) {
+            org.springframework.ai.chat.metadata.Usage usage, Long userId) {
         Long projectId = chatSession.getId().getProjectId();
 
-        int promptTokens = usageSnapshot != null ? usageSnapshot.promptTokens() : 0;
-        int completionTokens = usageSnapshot != null ? usageSnapshot.completionTokens() : 0;
-        int totalTokens = usageSnapshot != null ? usageSnapshot.totalTokens() : 0;
+        int promptTokens = usage != null && usage.getPromptTokens() != null ? usage.getPromptTokens() : 0;
+        int completionTokens = usage != null && usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0;
+        int totalTokens = usage != null && usage.getTotalTokens() != null ? usage.getTotalTokens() : 0;
 
         boolean providerUsageReliable = totalTokens > 0 || promptTokens > 0 || completionTokens > 0;
         if (!providerUsageReliable) {
-            log.warn("AI usage metadata missing/zero from advisor: projectId={}, userId={}", projectId, userId);
+            // Fallback to estimation based on character length (approx 4 chars per token)
+            int estimatedPrompt = Math.max(1, (int) Math.ceil((userMessage != null ? userMessage.length() : 0) / 4.0));
+            int estimatedCompletion = Math.max(1, (int) Math.ceil((fullText != null ? fullText.length() : 0) / 4.0));
+            totalTokens = estimatedPrompt + estimatedCompletion;
+            log.warn(
+                    "AI usage metadata missing/zero from advisor. Falling back to estimation: prompt={}, completion={}, total={}",
+                    estimatedPrompt, estimatedCompletion, totalTokens);
         } else {
             // Some providers return total=0 while component fields are populated.
             if (totalTokens <= 0) {
@@ -344,8 +358,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                             .role(MessageRole.USER)
                             .content(userMessage)
                             .tokensUsed(promptTokens)
-                            .build()
-            );
+                            .build());
 
             ChatMessage assistantChatMessage = ChatMessage.builder()
                     .role(MessageRole.ASSISTANT)
@@ -358,14 +371,15 @@ public class AiGenerationServiceImpl implements AiGenerationService {
 
             List<ChatEvent> parsedEvents = llmResponseParser.parseChatEvents(fullText, savedAssistantMessage);
             parsedEvents.addFirst(ChatEvent.builder()
-                            .type(ChatEventType.THOUGHT)
-                            .status(ChatEventStatus.CONFIRMED)
-                            .chatMessage(savedAssistantMessage)
-                            .content("Thought for "+duration+"s")
-                            .sequenceOrder(0)
+                    .type(ChatEventType.THOUGHT)
+                    .status(ChatEventStatus.CONFIRMED)
+                    .chatMessage(savedAssistantMessage)
+                    .content("Thought for " + duration + "s")
+                    .sequenceOrder(0)
                     .build());
 
-            // Initialize sagaIds for file edits inside the transaction so they are saved to DB
+            // Initialize sagaIds for file edits inside the transaction so they are saved to
+            // DB
             parsedEvents.stream()
                     .filter(e -> e.getType() == ChatEventType.FILE_EDIT)
                     .forEach(e -> {
@@ -386,10 +400,9 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                             e.getSagaId(),
                             e.getFilePath(),
                             e.getContent(),
-                            userId
-                    );
+                            userId);
                     log.info("Storage request event sent: {}", e.getFilePath());
-                    kafkaTemplate.send("file-storage-request-event", "project-"+projectId, fileStoreRequestEvent);
+                    kafkaTemplate.send("file-storage-request-event", "project-" + projectId, fileStoreRequestEvent);
                 });
     }
 
@@ -397,7 +410,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
         ChatSessionId chatSessionId = new ChatSessionId(projectId, userId);
         ChatSession chatSession = chatSessionRepository.findById(chatSessionId).orElse(null);
 
-        if(chatSession == null) {
+        if (chatSession == null) {
             chatSession = ChatSession.builder()
                     .id(chatSessionId)
                     .build();

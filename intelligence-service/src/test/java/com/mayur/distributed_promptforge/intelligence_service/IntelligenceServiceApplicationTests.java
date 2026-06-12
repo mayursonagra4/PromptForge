@@ -14,16 +14,6 @@ class IntelligenceServiceApplicationTests {
 
     @Test
     void testCheckPermissionFeignClient() {
-        System.out.println("=== DIAGNOSING FEIGN CLIENT IN INTELLIGENCE SERVICE ===");
-        try {
-            System.out.println("Calling workspaceClient.checkPermission(13L, VIEW, 2L)...");
-            boolean allowed = workspaceClient.checkPermission(13L, ProjectPermission.VIEW, 2L);
-            System.out.println("SUCCESS! Allowed: " + allowed);
-        } catch (Exception e) {
-            System.out.println("FAILURE! Exception thrown: " + e.getClass().getName() + " - " + e.getMessage());
-            e.printStackTrace();
-        }
-        System.out.println("========================================================");
     }
 
 }

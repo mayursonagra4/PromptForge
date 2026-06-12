@@ -247,9 +247,9 @@ export default function BillingPage() {
       features.push(plan.maxProjects >= 999999 ? "Unlimited projects" : `${plan.maxProjects} projects`);
     }
     if (plan.unlimitedAi) {
-      features.push("Unlimited AI messages");
+      features.push("Unlimited AI tokens");
     } else if (plan.maxTokensPerDay != null) {
-      features.push(`${plan.maxTokensPerDay.toLocaleString()} AI messages/day`);
+      features.push(`${plan.maxTokensPerDay.toLocaleString()} AI tokens/day`);
     }
     if (plan.name?.toUpperCase() === "FREE") {
       features.push("Community support");
@@ -273,8 +273,9 @@ export default function BillingPage() {
 
   const tokensUsed = usage?.tokensUsed ?? (normalizedSubs[0]?.tokensUsedThisCycle ?? 0);
   const tokensLimit = usage?.tokensLimit ?? limits?.maxTokensPerDay ?? 100;
-  const tokensRemaining = usage?.tokensRemaining ?? Math.max(tokensLimit - tokensUsed, 0);
-  const tokensPercent = Math.min(100, Math.round((tokensUsed / tokensLimit) * 100));
+  const isUnlimited = limits?.unlimitedAi || tokensLimit >= 1000000000;
+  const tokensRemaining = isUnlimited ? 0 : (usage?.tokensRemaining ?? Math.max(tokensLimit - tokensUsed, 0));
+  const tokensPercent = isUnlimited ? 0 : Math.min(100, Math.round((tokensUsed / tokensLimit) * 100));
 
   return (
     <div className="min-h-screen bg-background">
@@ -367,17 +368,19 @@ export default function BillingPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <BarChart2 className="w-4 h-4" /> AI Usage Today
+                    <BarChart2 className="w-4 h-4" /> {isUnlimited ? "AI Usage" : "AI Usage Today"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">{tokensUsed.toLocaleString()} tokens</span>
-                    <span className="text-muted-foreground">/ {tokensLimit.toLocaleString()}</span>
+                    <span className="text-muted-foreground">/ {isUnlimited ? "Unlimited" : tokensLimit.toLocaleString()}</span>
                   </div>
-                  <Progress value={tokensPercent} className="h-2" />
+                  <Progress value={isUnlimited ? 0 : tokensPercent} className="h-2" />
                   <p className="text-xs text-muted-foreground">
-                    {tokensPercent}% used, {tokensRemaining.toLocaleString()} remaining
+                    {isUnlimited 
+                      ? "Unlimited tokens available" 
+                      : `${tokensPercent}% used, ${tokensRemaining.toLocaleString()} remaining`}
                   </p>
                 </CardContent>
               </Card>

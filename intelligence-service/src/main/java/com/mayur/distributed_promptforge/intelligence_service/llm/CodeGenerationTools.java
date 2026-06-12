@@ -20,12 +20,6 @@ public class CodeGenerationTools {
     private final Long projectId;
     private final WorkspaceClient workspaceClient;
 
-    public record ReadFilesRequest(
-            @ToolParam(description = "Relative file paths present in FILE_TREE. Examples: [\"index.html\",\"style.css\",\"script.js\"]")
-            List<String> paths
-    ) {
-    }
-
     public record WriteFileRequest(
             @ToolParam(description = "Relative path to write. Examples: index.html, style.css, script.js")
             String path,
@@ -35,22 +29,16 @@ public class CodeGenerationTools {
     ) {
     }
 
-    public record WriteFilesRequest(
-            @ToolParam(description = "Files to write. Maximum 8 files per call.")
-            List<WriteFileRequest> files
-    ) {
-    }
-
     @Tool(name = "read_files",
-            description = "Read files from the current project. Input JSON must be an object: {\"paths\":[\"index.html\",\"style.css\",\"script.js\"]}.")
+            description = "Read files from the current project.")
     public List<String> readFiles(
-            @ToolParam(description = "Object containing relative file paths to read")
-            ReadFilesRequest request
+            @ToolParam(description = "List of relative file paths to read. Examples: [\"index.html\",\"style.css\",\"script.js\"]")
+            List<String> paths
     ) {
-        List<String> paths = validateReadFilesRequest(request);
+        List<String> validatedPaths = validateReadFiles(paths);
         List<String> result = new ArrayList<>();
 
-        for (String path : paths) {
+        for (String path : validatedPaths) {
             String cleanPath = normalizePath(path);
             log.info("Tool read_files: projectId={}, path={}", projectId, cleanPath);
 
@@ -65,15 +53,15 @@ public class CodeGenerationTools {
     }
 
     @Tool(name = "write_files",
-            description = "Write one or more complete files. Input JSON must be: {\"files\":[{\"path\":\"index.html\",\"content\":\"...\"},{\"path\":\"style.css\",\"content\":\"...\"},{\"path\":\"script.js\",\"content\":\"...\"}]}.")
+            description = "Write one or more complete files.")
     public String writeFiles(
-            @ToolParam(description = "Object containing files array with path and complete content")
-            WriteFilesRequest request
+            @ToolParam(description = "List of files to write. Maximum 8 files per call.")
+            List<WriteFileRequest> files
     ) {
-        List<WriteFileRequest> files = validateWriteFilesRequest(request);
+        List<WriteFileRequest> validatedFiles = validateWriteFiles(files);
         int savedCount = 0;
 
-        for (WriteFileRequest file : files) {
+        for (WriteFileRequest file : validatedFiles) {
             savedCount += saveValidatedFile(file) ? 1 : 0;
         }
 
@@ -81,54 +69,54 @@ public class CodeGenerationTools {
     }
 
     @Tool(name = "write_file",
-            description = "Write a single complete file. Input JSON must be: {\"path\":\"index.html\",\"content\":\"...\"}.")
+            description = "Write a single complete file.")
     public String writeFile(
-            @ToolParam(description = "Single file object with path and complete content")
-            WriteFileRequest request
+            @ToolParam(description = "Relative path to write. Examples: index.html, style.css, script.js")
+            String path,
+
+            @ToolParam(description = "Complete file content. Do not use placeholders.")
+            String content
     ) {
-        WriteFileRequest file = validateWriteFileRequest(request);
+        WriteFileRequest file = validateWriteFile(path, content);
         boolean saved = saveValidatedFile(file);
         return saved
                 ? "ACK: write_file saved " + normalizePath(file.path()) + "."
                 : "ACK: write_file failed to save " + normalizePath(file.path()) + ".";
     }
 
-    private List<String> validateReadFilesRequest(ReadFilesRequest request) {
-        if (request == null || request.paths() == null || request.paths().isEmpty()) {
+    private List<String> validateReadFiles(List<String> paths) {
+        if (paths == null || paths.isEmpty()) {
             throw new IllegalArgumentException("read_files requires at least one path");
         }
-        if (request.paths().size() > MAX_FILES_PER_TOOL_CALL) {
+        if (paths.size() > MAX_FILES_PER_TOOL_CALL) {
             throw new IllegalArgumentException("read_files supports at most " + MAX_FILES_PER_TOOL_CALL + " paths");
         }
-        request.paths().forEach(this::validatePath);
-        log.debug("Tool read_files args: projectId={}, paths={}", projectId, request.paths());
-        return request.paths();
+        paths.forEach(this::validatePath);
+        log.debug("Tool read_files args: projectId={}, paths={}", projectId, paths);
+        return paths;
     }
 
-    private List<WriteFileRequest> validateWriteFilesRequest(WriteFilesRequest request) {
-        if (request == null || request.files() == null || request.files().isEmpty()) {
+    private List<WriteFileRequest> validateWriteFiles(List<WriteFileRequest> files) {
+        if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("write_files requires at least one file");
         }
-        if (request.files().size() > MAX_FILES_PER_TOOL_CALL) {
+        if (files.size() > MAX_FILES_PER_TOOL_CALL) {
             throw new IllegalArgumentException("write_files supports at most " + MAX_FILES_PER_TOOL_CALL + " files");
         }
-        request.files().forEach(this::validateWriteFileRequest);
-        log.debug("Tool write_files args: projectId={}, fileCount={}", projectId, request.files().size());
-        return request.files();
+        files.forEach(file -> validateWriteFile(file.path(), file.content()));
+        log.debug("Tool write_files args: projectId={}, fileCount={}", projectId, files.size());
+        return files;
     }
 
-    private WriteFileRequest validateWriteFileRequest(WriteFileRequest file) {
-        if (file == null) {
-            throw new IllegalArgumentException("file payload is required");
-        }
-        validatePath(file.path());
-        if (file.content() == null) {
+    private WriteFileRequest validateWriteFile(String path, String content) {
+        validatePath(path);
+        if (content == null) {
             throw new IllegalArgumentException("file content is required");
         }
-        if (file.content().length() > MAX_FILE_CONTENT_CHARS) {
-            throw new IllegalArgumentException("file content is too large: " + normalizePath(file.path()));
+        if (content.length() > MAX_FILE_CONTENT_CHARS) {
+            throw new IllegalArgumentException("file content is too large: " + normalizePath(path));
         }
-        return file;
+        return new WriteFileRequest(path, content);
     }
 
     private boolean saveValidatedFile(WriteFileRequest file) {

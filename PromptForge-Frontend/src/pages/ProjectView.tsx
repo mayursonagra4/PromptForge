@@ -268,11 +268,7 @@ export function ProjectView() {
   }, [toast]);
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/projects");
-    }
+    navigate("/projects");
   }, [navigate]);
 
   useEffect(() => {

@@ -8,18 +8,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class AiConfig {
 
-    private final TokenUsageAuditAdvisor tokenUsageAuditAdvisor;
-
-    public AiConfig(TokenUsageAuditAdvisor tokenUsageAuditAdvisor) {
-        this.tokenUsageAuditAdvisor = tokenUsageAuditAdvisor;
-    }
-
     @Bean
     public ChatClient chatClient(ChatClient.Builder builder) {
-        return  builder
-                .defaultAdvisors(
-                        tokenUsageAuditAdvisor
-                )
+        return builder
+                .defaultAdvisors(new TokenUsageAuditAdvisor())
                 .build();
     }
 }

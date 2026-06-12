@@ -11,3 +11,4 @@ spring:
       chat:
         options:
           model: ${OPENAI_MODEL}
+          stream-usage: true

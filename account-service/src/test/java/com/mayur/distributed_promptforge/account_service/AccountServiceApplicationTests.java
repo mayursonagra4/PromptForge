@@ -19,28 +19,6 @@ class AccountServiceApplicationTests {
 
     @Test
     void contextLoads() {
-        System.out.println("=== DIAGNOSING DATABASE USERS ===");
-        try {
-            List<Map<String, Object>> users = jdbcTemplate.queryForList("SELECT * FROM users");
-            System.out.println("Users count: " + users.size());
-            for (Map<String, Object> u : users) {
-                System.out.println("User: " + u);
-            }
-        } catch (Exception e) {
-            System.out.println("Failed to query users: " + e.getMessage());
-        }
-        System.out.println("==================================");
 
-        System.out.println("=== TESTING EMAIL VALIDATION ===");
-        try {
-            String testEmail = "msonagra787787@gmail.com";
-            boolean exists = emailService.isEmailValidAndExists(testEmail);
-            System.out.println("Result for " + testEmail + ": " + exists);
-        } catch (Exception e) {
-            System.out.println("Email validation failed: " + e.getMessage());
-            e.printStackTrace();
-        }
-        System.out.println("================================");
     }
-
 }

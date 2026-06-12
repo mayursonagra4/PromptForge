@@ -2,6 +2,12 @@ server:
   port: 9030
 
 spring:
+  ai:
+    openai:
+      chat:
+        options:
+          stream-usage: true
+
   datasource:
     url: jdbc:postgresql://localhost:5432/promptforge_intelligence_db
 
