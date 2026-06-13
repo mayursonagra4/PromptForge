@@ -1,8 +1,13 @@
 spring:
   application:
     name: intelligence-service
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        service-id: config-service
   config:
-    import: optional:configserver:http://localhost:8888
+    import: "optional:configserver:"
 
   ai:
     openai:
