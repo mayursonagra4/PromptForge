@@ -62,13 +62,18 @@ public class AdminServiceImpl implements AdminService {
         applyPlan(plan, request);
         planRepository.save(plan);
         // Evict all users subscribed to this plan so they get fresh limits
-        evictAllUsersForPlan(planId);
+        if ("FREE".equalsIgnoreCase(plan.getName())) {
+            subscriptionCacheService.evictAllPlans();
+        } else {
+            evictAllUsersForPlan(planId);
+        }
     }
 
     @Override
     public void deletePlan(Long planId) {
-        if (!planRepository.existsById(planId)) {
-            throw new ResourceNotFoundException("Plan", String.valueOf(planId));
+        Plan plan = planRepository.findById(planId).orElseThrow(() -> new ResourceNotFoundException("Plan", String.valueOf(planId)));
+        if ("FREE".equalsIgnoreCase(plan.getName())) {
+            throw new BadRequestException("Default plan (FREE) cannot be deleted");
         }
         if (subscriptionRepository.existsByPlanId(planId)) {
             throw new BadRequestException("Plan is assigned to existing subscriptions and cannot be deleted");

@@ -1,7 +1,9 @@
 package com.mayur.distributed_promptforge.account_service.config;
 
+import com.mayur.distributed_promptforge.account_service.entity.Plan;
 import com.mayur.distributed_promptforge.account_service.entity.User;
 import com.mayur.distributed_promptforge.account_service.entity.UserRole;
+import com.mayur.distributed_promptforge.account_service.repository.PlanRepository;
 import com.mayur.distributed_promptforge.account_service.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +18,7 @@ public class AdminBootstrapConfig {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PlanRepository planRepository;
 
     @Value("${app.admin.email:mayursonagra4@gmail.com}")
     private String adminEmail;
@@ -42,5 +45,22 @@ public class AdminBootstrapConfig {
                             .build();
                     userRepository.save(admin);
                 });
+    }
+
+    @Bean
+    public CommandLineRunner ensureDefaultPlan() {
+        return args -> {
+            if (planRepository.findByNameIgnoreCase("FREE").isEmpty()) {
+                Plan freePlan = new Plan();
+                freePlan.setName("FREE");
+                freePlan.setPriceInPaise(0L);
+                freePlan.setMaxProjects(5);
+                freePlan.setMaxTokensPerDay(100);
+                freePlan.setUnlimitedAi(false);
+                freePlan.setValidityDays(36500); // 100 years
+                freePlan.setActive(true);
+                planRepository.save(freePlan);
+            }
+        };
     }
 }

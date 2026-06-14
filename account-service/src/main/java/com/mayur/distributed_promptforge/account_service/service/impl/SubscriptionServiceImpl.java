@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -241,6 +242,19 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             }
 
             if (validSubscriptions.isEmpty()) {
+                Optional<Plan> freePlanOpt = planRepository.findByNameIgnoreCase("FREE");
+                if (freePlanOpt.isPresent()) {
+                    Plan p = freePlanOpt.get();
+                    return new PlanDto(
+                            p.getId(),
+                            p.getName(),
+                            p.getMaxProjects(),
+                            p.getMaxTokensPerDay(),
+                            p.getUnlimitedAi(),
+                            "0",
+                            toDisplayName(p.getName())
+                    );
+                }
                 return null;
             }
 
@@ -295,7 +309,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     public List<PublicPlanResponse> getAvailablePlans() {
         return planRepository.findAll().stream()
-                .filter(plan -> Boolean.TRUE.equals(plan.getActive()))
+                .filter(plan -> Boolean.TRUE.equals(plan.getActive()) && !"FREE".equalsIgnoreCase(plan.getName()))
                 .sorted((a, b) -> {
                     long pa = a.getPriceInPaise() != null ? a.getPriceInPaise() : 0L;
                     long pb = b.getPriceInPaise() != null ? b.getPriceInPaise() : 0L;

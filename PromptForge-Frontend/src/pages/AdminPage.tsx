@@ -43,7 +43,7 @@ const DEFAULT_PLAN_FORM: AdminPlanUpsertRequest = {
 export default function AdminPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const userInfo = getUserInfo();
+  const userInfo = useMemo(() => getUserInfo(), []);
 
   const [dashboard, setDashboard] = useState<AdminDashboardResponse | null>(null);
   const [users, setUsers] = useState<AdminUserResponse[]>([]);
@@ -405,6 +405,7 @@ export default function AdminPage() {
                         </div>
                         <Switch
                           checked={Boolean(plan.active)}
+                          disabled={plan.name?.toUpperCase() === "FREE"}
                           onCheckedChange={async (checked) => {
                             try {
                               await api.setAdminPlanActive(plan.id, checked);
@@ -432,13 +433,15 @@ export default function AdminPage() {
                         >
                           Edit
                         </Button>
-                        <Button
-                          variant="outline"
-                          className="border-red-900 text-red-300 hover:bg-red-950 hover:text-red-200"
-                          onClick={() => setPlanToDelete(plan)}
-                        >
-                          Remove
-                        </Button>
+                        {plan.name?.toUpperCase() !== "FREE" && (
+                          <Button
+                            variant="outline"
+                            className="border-red-900 text-red-300 hover:bg-red-950 hover:text-red-200"
+                            onClick={() => setPlanToDelete(plan)}
+                          >
+                            Remove
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

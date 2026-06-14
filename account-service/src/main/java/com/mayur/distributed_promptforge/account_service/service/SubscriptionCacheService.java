@@ -12,4 +12,6 @@ public interface SubscriptionCacheService {
     PlanDto getPlan(Long userId, Supplier<PlanDto> dbLoader);
 
     void evictPlan(Long userId);
+
+    void evictAllPlans();
 }

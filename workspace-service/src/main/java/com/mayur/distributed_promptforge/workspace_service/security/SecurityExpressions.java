@@ -4,10 +4,12 @@ import com.mayur.distributed_promptforge.common_lib.enums.ProjectPermission;
 import com.mayur.distributed_promptforge.common_lib.security.AuthUtil;
 import com.mayur.distributed_promptforge.workspace_service.repository.ProjectMemberRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component("security")
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityExpressions {
 
     private final ProjectMemberRepository projectMemberRepository;
@@ -19,19 +21,19 @@ public class SecurityExpressions {
     }
 
     public boolean hasPermission(Long projectId, Long userId, ProjectPermission projectPermission) {
-        System.out.println("=== SECURITY PERMISSION CHECK ===");
-        System.out.println("projectId: " + projectId);
-        System.out.println("userId: " + userId);
-        System.out.println("permission: " + projectPermission);
+        log.debug("=== SECURITY PERMISSION CHECK ===");
+        log.debug("projectId: {}", projectId);
+        log.debug("userId: {}", userId);
+        log.debug("permission: {}", projectPermission);
         boolean result = projectMemberRepository.findRoleByProjectIdAndUserId(projectId, userId).
                 map(role -> {
-                    System.out.println("Found user role: " + role);
-                    System.out.println("Permissions: " + role.getPermissions());
+                    log.debug("Found user role: {}", role);
+                    log.debug("Permissions: {}", role.getPermissions());
                     return role.getPermissions().contains(projectPermission);
                 })
                 .orElse(false);
-        System.out.println("result: " + result);
-        System.out.println("=================================");
+        log.debug("result: {}", result);
+        log.debug("=================================");
         return result;
     }
 

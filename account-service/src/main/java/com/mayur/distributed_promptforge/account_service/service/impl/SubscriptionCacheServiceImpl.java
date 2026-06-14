@@ -31,4 +31,10 @@ public class SubscriptionCacheServiceImpl implements SubscriptionCacheService {
     public void evictPlan(Long userId) {
         log.debug("Plan cache evicted for userId={}", userId);
     }
+
+    @Override
+    @CacheEvict(value = "plan:user", allEntries = true)
+    public void evictAllPlans() {
+        log.info("All plan caches evicted");
+    }
 }
