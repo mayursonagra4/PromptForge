@@ -107,14 +107,23 @@ public class AiGenerationServiceImpl implements AiGenerationService {
         AtomicBoolean finalized = new AtomicBoolean(false);
         AtomicReference<org.springframework.ai.chat.metadata.Usage> streamUsage = new AtomicReference<>(null);
 
-        return chatClient.prompt()
-                .system(PromptUtils.CODE_GENERATION_SYSTEM_PROMPT)
-                .system(systemPrompt)
-                .messages(chatHistory)
-                .user(userMessage)
-                .tools(codeGenerationTools)
-                .stream()
-                .chatResponse()
+         return Flux.defer(() -> {
+             fullResponseBuffer.setLength(0);
+             startTime.set(System.currentTimeMillis());
+             endTime.set(0L);
+             chunkCount.set(0);
+             finalized.set(false);
+             streamUsage.set(null);
+
+             return chatClient.prompt()
+                     .system(PromptUtils.CODE_GENERATION_SYSTEM_PROMPT)
+                     .system(systemPrompt)
+                     .messages(chatHistory)
+                     .user(userMessage)
+                     .tools(codeGenerationTools)
+                     .stream()
+                     .chatResponse();
+         })
                 .retryWhen(
                         Retry.backoff(2, Duration.ofSeconds(2))
                                 .maxBackoff(Duration.ofSeconds(8))
