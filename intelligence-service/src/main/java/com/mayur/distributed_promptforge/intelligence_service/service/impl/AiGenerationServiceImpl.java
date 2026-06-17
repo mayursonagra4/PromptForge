@@ -260,9 +260,28 @@ public class AiGenerationServiceImpl implements AiGenerationService {
         return false;
     }
 
+    private boolean isNetworkOrTimeoutError(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause != null) {
+            String className = cause.getClass().getName();
+            if (className.contains("PrematureCloseException")
+                    || className.contains("TimeoutException")
+                    || className.contains("ConnectException")
+                    || cause instanceof java.io.IOException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
     private boolean isRetryableTransientError(Throwable throwable) {
         if (isRetryableRateLimit(throwable)) {
             return false;
+        }
+
+        if (isNetworkOrTimeoutError(throwable)) {
+            return true;
         }
 
         if (throwable instanceof WebClientResponseException webEx) {
