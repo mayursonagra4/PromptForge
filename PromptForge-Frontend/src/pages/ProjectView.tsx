@@ -16,6 +16,7 @@ import { RuntimeErrorAlert, RuntimeError } from "@/components/RuntimeErrorAlert"
 import { generateGradient, cn } from "@/lib/utils";
 import { ProjectMember, ProjectResponse, ChatMessage as BackendChatMessage } from "@/lib/types";
 import { ShareDialog } from "@/components/ShareDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type ViewMode = "code" | "preview";
 
@@ -38,6 +39,7 @@ export function ProjectView() {
   const [projectOwner, setProjectOwner] = useState<ProjectMember | null>(null);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [renameName, setRenameName] = useState("");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [tokensUsed, setTokensUsed] = useState(0);
   const [tokensLimit, setTokensLimit] = useState(100);
   const [unlimitedAi, setUnlimitedAi] = useState(false);
@@ -320,9 +322,9 @@ Please analyze this error and fix the code to resolve it.`;
 
   const handleDeleteProject = async () => {
     if (!projectId) return;
-    if (!confirm("Are you sure you want to delete this project?")) return;
     try {
       await api.deleteProject(projectId);
+      setIsDeleteConfirmOpen(false);
       navigate("/projects");
       toast({ title: "Success", description: "Project deleted successfully" });
     } catch {
@@ -422,7 +424,7 @@ Please analyze this error and fix the code to resolve it.`;
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-red-500 focus:text-red-500"
-                  onClick={handleDeleteProject}
+                  onClick={() => setIsDeleteConfirmOpen(true)}
                 >
                   <Trash className="w-4 h-4 mr-2" />
                   Delete
@@ -613,6 +615,17 @@ Please analyze this error and fix the code to resolve it.`;
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+        title="Delete Project"
+        description="Are you sure you want to delete this project? This action cannot be undone and all project data will be permanently removed."
+        confirmText="Delete Project"
+        variant="danger"
+        onConfirm={handleDeleteProject}
+      />
     </div>
   );
 }

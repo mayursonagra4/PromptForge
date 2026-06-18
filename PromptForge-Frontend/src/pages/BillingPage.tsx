@@ -18,6 +18,7 @@ import { getUserInfo } from "@/lib/api";
 import { SubscriptionResponse, UsageTodayResponse, PlanLimitsResponse, PublicPlanResponse } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 declare global {
   interface Window {
@@ -40,6 +41,7 @@ export default function BillingPage() {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
 
   // Handle success/cancel from Razorpay redirect
   useEffect(() => {
@@ -212,12 +214,10 @@ export default function BillingPage() {
   };
 
   const handleCancelSubscription = async (id: number) => {
-    if (!window.confirm("Are you sure you want to cancel this plan?")) {
-      return;
-    }
     setCancelingId(id);
     try {
       await api.cancelSubscription(id);
+      setCancelConfirmId(null);
       toast({
         title: "Plan Canceled",
         description: "Your subscription has been canceled successfully.",
@@ -348,7 +348,7 @@ export default function BillingPage() {
                             variant="destructive"
                             size="sm"
                             className="h-8"
-                            onClick={() => handleCancelSubscription(sub.id!)}
+                            onClick={() => setCancelConfirmId(sub.id!)}
                             disabled={cancelingId === sub.id}
                           >
                             {cancelingId === sub.id ? (
@@ -487,6 +487,20 @@ export default function BillingPage() {
           </>
         )}
       </main>
+
+      {/* Cancel Subscription Confirm Dialog */}
+      <ConfirmDialog
+        open={cancelConfirmId !== null}
+        onOpenChange={(open) => {
+          if (!open) setCancelConfirmId(null);
+        }}
+        title="Cancel Subscription"
+        description="Are you sure you want to cancel this plan? You will lose access to premium features at the end of your current billing period."
+        confirmText="Cancel Plan"
+        variant="warning"
+        onConfirm={() => cancelConfirmId !== null && handleCancelSubscription(cancelConfirmId)}
+        loading={cancelingId !== null}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { ProjectSummaryResponse } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { generateGradient, cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export function ProjectsDashboard() {
   const navigate = useNavigate();
@@ -33,6 +34,8 @@ export function ProjectsDashboard() {
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [projectToRename, setProjectToRename] = useState<ProjectSummaryResponse | null>(null);
   const [renameName, setRenameName] = useState("");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [projectToDeleteId, setProjectToDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -80,12 +83,19 @@ export function ProjectsDashboard() {
     }
   };
 
-  const handleDeleteProject = async (e: React.MouseEvent, projectId: number) => {
+  const openDeleteConfirm = (e: React.MouseEvent, projectId: number) => {
     e.stopPropagation();
-    if (!confirm("Delete this project? This cannot be undone.")) return;
+    setProjectToDeleteId(projectId);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteProject = async () => {
+    if (projectToDeleteId === null) return;
     try {
-      await api.deleteProject(projectId.toString());
-      setProjects(projects.filter(p => p.id !== projectId));
+      await api.deleteProject(projectToDeleteId.toString());
+      setProjects(projects.filter(p => p.id !== projectToDeleteId));
+      setIsDeleteConfirmOpen(false);
+      setProjectToDeleteId(null);
       toast({ title: "Success", description: "Project deleted" });
     } catch {
       toast({ title: "Error", description: "Failed to delete project", variant: "destructive" });
@@ -331,7 +341,7 @@ export function ProjectsDashboard() {
                         {project.role === "OWNER" && (
                           <DropdownMenuItem
                             className="text-red-500 focus:text-red-500"
-                            onClick={(e) => handleDeleteProject(e, project.id)}
+                            onClick={(e) => openDeleteConfirm(e, project.id)}
                           >
                             <Trash className="w-4 h-4 mr-2" /> Delete
                           </DropdownMenuItem>
@@ -368,6 +378,20 @@ export function ProjectsDashboard() {
             ))}
           </div>
         )}
+
+        {/* Delete Confirm Dialog */}
+        <ConfirmDialog
+          open={isDeleteConfirmOpen}
+          onOpenChange={(open) => {
+            setIsDeleteConfirmOpen(open);
+            if (!open) setProjectToDeleteId(null);
+          }}
+          title="Delete Project"
+          description="Delete this project? This cannot be undone. All project data will be permanently removed."
+          confirmText="Delete"
+          variant="danger"
+          onConfirm={handleDeleteProject}
+        />
       </main>
     </div>
   );
