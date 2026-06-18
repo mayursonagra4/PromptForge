@@ -1,6 +1,8 @@
 package com.mayur.distributed_promptforge.workspace_service.service.impl;
 
+import com.mayur.distributed_promptforge.common_lib.error.StorageException;
 import com.mayur.distributed_promptforge.common_lib.dto.FileNode;
+
 import com.mayur.distributed_promptforge.common_lib.dto.FileTreeDto;
 import com.mayur.distributed_promptforge.common_lib.error.ResourceNotFoundException;
 import com.mayur.distributed_promptforge.workspace_service.dto.project.FileContentResponse;
@@ -78,12 +80,13 @@ public class ProjectFileServiceImpl implements ProjectFileService {
                 return new FileContentResponse(path, "");
             }
             log.error("Failed to read file: {}/{}", projectId, path, e);
-            throw new RuntimeException("Failed to read file content", e);
+            throw new StorageException("Failed to read file content", e);
         } catch (Exception e) {
             log.error("Failed to read file: {}/{}", projectId, path, e);
-            throw new RuntimeException("Failed to read file content", e);
+            throw new StorageException("Failed to read file content", e);
         }
     }
+
 
     @Override
     public byte[] downloadProjectZip(Long projectId) {
@@ -114,7 +117,7 @@ public class ProjectFileServiceImpl implements ProjectFileService {
             return byteArrayOutputStream.toByteArray();
         } catch (Exception e) {
             log.error("Failed to build zip for project: {}", projectId, e);
-            throw new RuntimeException("Failed to generate project archive", e);
+            throw new StorageException("Failed to generate project archive", e);
         }
     }
 
@@ -156,7 +159,7 @@ public class ProjectFileServiceImpl implements ProjectFileService {
             log.info("Saved file and evicted file tree cache: {}", objectKey);
         } catch (Exception e) {
             log.error("Failed to save file {}/{}", projectId, cleanPath, e);
-            throw new RuntimeException("File save failed", e);
+            throw new StorageException("File save failed", e);
         }
 
     }
@@ -208,7 +211,7 @@ public class ProjectFileServiceImpl implements ProjectFileService {
             log.info("Successfully deleted MinIO folder for project {}", projectId);
         } catch (Exception e) {
             log.error("Failed to delete MinIO folder for project {}", projectId, e);
-            throw new RuntimeException("MinIO folder deletion failed", e);
+            throw new StorageException("MinIO folder deletion failed", e);
         }
     }
 }

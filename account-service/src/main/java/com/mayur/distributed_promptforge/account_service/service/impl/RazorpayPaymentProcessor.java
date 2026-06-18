@@ -1,6 +1,8 @@
 package com.mayur.distributed_promptforge.account_service.service.impl;
 
+import com.mayur.distributed_promptforge.common_lib.error.PaymentException;
 import com.mayur.distributed_promptforge.account_service.dto.subscription.CheckoutRequest;
+
 import com.mayur.distributed_promptforge.account_service.dto.subscription.CheckoutResponse;
 import com.mayur.distributed_promptforge.account_service.dto.subscription.ConfirmPaymentRequest;
 import com.mayur.distributed_promptforge.account_service.dto.subscription.PortalResponse;
@@ -92,7 +94,7 @@ public class RazorpayPaymentProcessor implements PaymentProcessor {
 
         } catch (RazorpayException e) {
             log.error("Razorpay error: {}", e.getMessage());
-            throw new RuntimeException("Payment initialization failed: " + e.getMessage());
+            throw new PaymentException("Payment initialization failed: " + e.getMessage());
         }
     }
 
@@ -105,19 +107,19 @@ public class RazorpayPaymentProcessor implements PaymentProcessor {
 
             String paymentOrderId = payment.get("order_id");
             if (!request.orderId().equals(paymentOrderId)) {
-                throw new RuntimeException("Payment does not belong to the requested order");
+                throw new PaymentException("Payment does not belong to the requested order");
             }
 
             JSONObject orderJson = new JSONObject(order.toString());
             JSONObject notes = orderJson.optJSONObject("notes");
             if (notes == null) {
-                throw new RuntimeException("Missing payment metadata in Razorpay order notes");
+                throw new PaymentException("Missing payment metadata in Razorpay order notes");
             }
 
             String userIdStr = notes.optString("user_id");
             String planIdStr = notes.optString("plan_id");
             if (userIdStr == null || userIdStr.isBlank() || planIdStr == null || planIdStr.isBlank()) {
-                throw new RuntimeException("Invalid payment metadata in Razorpay order");
+                throw new PaymentException("Invalid payment metadata in Razorpay order");
             }
 
             subscriptionService.activateSubscription(
@@ -130,7 +132,7 @@ public class RazorpayPaymentProcessor implements PaymentProcessor {
 
         } catch (RazorpayException e) {
             log.error("Razorpay confirmation error: {}", e.getMessage());
-            throw new RuntimeException("Payment confirmation failed: " + e.getMessage());
+            throw new PaymentException("Payment confirmation failed: " + e.getMessage());
         }
     }
 
@@ -162,9 +164,10 @@ public class RazorpayPaymentProcessor implements PaymentProcessor {
             }
         } catch (Exception e) {
             log.error("Error handling Razorpay webhook: {}", e.getMessage());
-            throw new RuntimeException("Webhook handling failed: " + e.getMessage());
+            throw new PaymentException("Webhook handling failed: " + e.getMessage());
         }
     }
+
 
     private void handleOrderPaid(JSONObject orderJson) {
         log.info("Handling order.paid webhook");

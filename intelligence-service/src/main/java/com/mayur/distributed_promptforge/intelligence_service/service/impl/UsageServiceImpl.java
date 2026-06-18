@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.mayur.distributed_promptforge.common_lib.dto.PlanDto;
+import com.mayur.distributed_promptforge.common_lib.error.TokenLimitExceededException;
 import com.mayur.distributed_promptforge.common_lib.security.AuthUtil;
 import com.mayur.distributed_promptforge.intelligence_service.client.AccountClient;
 import com.mayur.distributed_promptforge.intelligence_service.entity.UsageLog;
@@ -129,7 +130,7 @@ public class UsageServiceImpl implements UsageService {
         int projectedPromptTokens = estimateTokenCount(promptText);
 
         if (used >= limit || (used + projectedPromptTokens) > limit) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+            throw new TokenLimitExceededException(
                     "Daily token limit reached for your plan. Please upgrade to continue.");
         }
     }

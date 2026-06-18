@@ -213,7 +213,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
     private List<Message> buildChatHistory(ChatSession chatSession) {
         List<ChatMessage> saved = chatMessageRepository.findByChatSession(chatSession);
 
-        // Last N messages lo, pure history nahi (context window + cost ke liye)
+        // Take the last N messages, not the entire history (to optimize context window and reduce cost)
         int fromIndex = Math.max(0, saved.size() - MAX_HISTORY_MESSAGES);
         List<ChatMessage> recent = saved.subList(fromIndex, saved.size());
 

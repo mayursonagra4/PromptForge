@@ -2,6 +2,7 @@ package com.mayur.distributed_promptforge.intelligence_service.client.fallback;
 
 import com.mayur.distributed_promptforge.common_lib.dto.FileTreeDto;
 import com.mayur.distributed_promptforge.common_lib.enums.ProjectPermission;
+import com.mayur.distributed_promptforge.common_lib.error.WorkspaceServiceUnavailableException;
 import com.mayur.distributed_promptforge.intelligence_service.client.WorkspaceClient;
 import org.springframework.stereotype.Component;
 import java.util.List;
@@ -33,6 +34,6 @@ public class WorkspaceClientFallback implements WorkspaceClient {
     @Override
     public void saveFile(Long projectId, Map<String, String> payload) {
         log.error("WorkspaceClientFallback: Workspace Service is down. saveFile failed for projectId={}", projectId);
-        throw new IllegalStateException("Workspace service currently unavailable");
+        throw new WorkspaceServiceUnavailableException("Workspace service currently unavailable");
     }
 }

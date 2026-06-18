@@ -1,13 +1,12 @@
 package com.mayur.distributed_promptforge.common_lib.error;
 
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+public class BadRequestException extends RuntimeException {
+    public BadRequestException(String message) {
+        super(message);
+    }
 
-@Getter
-@RequiredArgsConstructor
-@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-public class BadRequestException extends RuntimeException{
-    String message;
+    public BadRequestException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
+

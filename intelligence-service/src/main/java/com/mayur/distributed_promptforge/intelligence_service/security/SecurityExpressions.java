@@ -2,11 +2,12 @@ package com.mayur.distributed_promptforge.intelligence_service.security;
 
 import com.mayur.distributed_promptforge.common_lib.enums.ProjectPermission;
 import com.mayur.distributed_promptforge.common_lib.security.AuthUtil;
+import com.mayur.distributed_promptforge.common_lib.error.InvalidTokenException;
+import com.mayur.distributed_promptforge.common_lib.error.PermissionCheckException;
 import com.mayur.distributed_promptforge.intelligence_service.client.WorkspaceClient;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.stereotype.Component;
 
 @Component("security")
@@ -29,7 +30,7 @@ public class SecurityExpressions {
         } catch (FeignException.Unauthorized e) {
             log.warn("Token expired or invalid during permission check: userId={}, projectId={}, permission={}",
                     userId, projectId, projectPermission);
-            throw new CredentialsExpiredException("JWT token is expired or invalid");
+            throw new InvalidTokenException("JWT token is expired or invalid");
         } catch (FeignException.Forbidden e) {
             log.warn("Workspace-service returned 403 for permission check: userId={}, projectId={}, permission={}",
                     userId, projectId, projectPermission);
@@ -37,7 +38,7 @@ public class SecurityExpressions {
         } catch (FeignException e) {
             log.error("Workspace-service failed during permission check: userId={}, projectId={}, permission={}, status={}, message={}",
                     userId, projectId, projectPermission, e.status(), e.getMessage());
-            throw new IllegalStateException("Permission check temporarily unavailable");
+            throw new PermissionCheckException("Permission check temporarily unavailable", e);
         }
     }
 

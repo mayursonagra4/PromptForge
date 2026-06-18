@@ -7,6 +7,7 @@ import com.mayur.distributed_promptforge.account_service.repository.UserReposito
 import com.mayur.distributed_promptforge.account_service.service.AuthService;
 import com.mayur.distributed_promptforge.account_service.service.EmailService;
 import com.mayur.distributed_promptforge.account_service.service.JwtBlacklistService;
+import com.mayur.distributed_promptforge.common_lib.error.UnsupportedAuthFlowException;
 import com.mayur.distributed_promptforge.common_lib.error.BadRequestException;
 import com.mayur.distributed_promptforge.common_lib.event.EmailEvent;
 import com.mayur.distributed_promptforge.common_lib.security.AuthUtil;
@@ -43,8 +44,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse signup(SignupRequest request) {
-        throw new UnsupportedOperationException("Use the new signup verification flow");
+        throw new UnsupportedAuthFlowException("Use the new signup verification flow");
     }
+
 
     @Override
     public AuthResponse login(LoginRequest request) {

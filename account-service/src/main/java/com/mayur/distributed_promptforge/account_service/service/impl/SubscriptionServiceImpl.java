@@ -18,6 +18,7 @@ import com.mayur.distributed_promptforge.common_lib.dto.PlanDto;
 import com.mayur.distributed_promptforge.common_lib.dto.UsageSnapshotDto;
 import com.mayur.distributed_promptforge.common_lib.enums.SubscriptionStatus;
 import com.mayur.distributed_promptforge.common_lib.error.ResourceNotFoundException;
+import com.mayur.distributed_promptforge.common_lib.error.SubscriptionAccessDeniedException;
 import com.mayur.distributed_promptforge.common_lib.security.AuthUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -299,7 +300,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         Subscription subscription = subscriptionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription", id.toString()));
         if (!subscription.getUser().getId().equals(userId)) {
-            throw new org.springframework.security.access.AccessDeniedException("You do not own this subscription");
+            throw new SubscriptionAccessDeniedException("You do not own this subscription");
         }
         subscription.setStatus(SubscriptionStatus.CANCELED);
         subscriptionRepository.save(subscription);

@@ -1,6 +1,8 @@
 package com.mayur.distributed_promptforge.workspace_service.service.impl;
 
+import com.mayur.distributed_promptforge.common_lib.error.TemplateInitializationException;
 import com.mayur.distributed_promptforge.common_lib.error.ResourceNotFoundException;
+
 import com.mayur.distributed_promptforge.workspace_service.entity.Project;
 import com.mayur.distributed_promptforge.workspace_service.entity.ProjectFile;
 import com.mayur.distributed_promptforge.workspace_service.repository.ProjectFileRepository;
@@ -85,7 +87,8 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
             log.info("Template initialized and file tree cache evicted for projectId={}", projectId);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize project from template", e);
+            throw new TemplateInitializationException("Failed to initialize project from template", e);
         }
     }
 }
+

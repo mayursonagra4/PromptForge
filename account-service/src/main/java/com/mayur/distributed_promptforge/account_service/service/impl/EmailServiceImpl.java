@@ -1,5 +1,6 @@
 package com.mayur.distributed_promptforge.account_service.service.impl;
 
+import com.mayur.distributed_promptforge.common_lib.error.EmailException;
 import com.mayur.distributed_promptforge.account_service.service.EmailService;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -50,9 +51,10 @@ public class EmailServiceImpl implements EmailService {
             log.info("Email sent successfully to {}", cleanTo);
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", cleanTo, e.getMessage(), e);
-            throw new RuntimeException("Failed to send email to " + cleanTo + ": " + e.getMessage(), e);
+            throw new EmailException("Failed to send email to " + cleanTo + ": " + e.getMessage(), e);
         }
     }
+
 
     /**
      * Step 1 — Regex syntax check (fast, no network).

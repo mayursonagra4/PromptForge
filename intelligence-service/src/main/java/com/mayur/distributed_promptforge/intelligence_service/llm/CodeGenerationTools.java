@@ -1,6 +1,7 @@
 package com.mayur.distributed_promptforge.intelligence_service.llm;
 
 import com.mayur.distributed_promptforge.intelligence_service.client.WorkspaceClient;
+import com.mayur.distributed_promptforge.common_lib.error.InvalidToolArgumentException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
@@ -86,10 +87,10 @@ public class CodeGenerationTools {
 
     private List<String> validateReadFiles(List<String> paths) {
         if (paths == null || paths.isEmpty()) {
-            throw new IllegalArgumentException("read_files requires at least one path");
+            throw new InvalidToolArgumentException("read_files requires at least one path");
         }
         if (paths.size() > MAX_FILES_PER_TOOL_CALL) {
-            throw new IllegalArgumentException("read_files supports at most " + MAX_FILES_PER_TOOL_CALL + " paths");
+            throw new InvalidToolArgumentException("read_files supports at most " + MAX_FILES_PER_TOOL_CALL + " paths");
         }
         paths.forEach(this::validatePath);
         log.debug("Tool read_files args: projectId={}, paths={}", projectId, paths);
@@ -98,10 +99,10 @@ public class CodeGenerationTools {
 
     private List<WriteFileRequest> validateWriteFiles(List<WriteFileRequest> files) {
         if (files == null || files.isEmpty()) {
-            throw new IllegalArgumentException("write_files requires at least one file");
+            throw new InvalidToolArgumentException("write_files requires at least one file");
         }
         if (files.size() > MAX_FILES_PER_TOOL_CALL) {
-            throw new IllegalArgumentException("write_files supports at most " + MAX_FILES_PER_TOOL_CALL + " files");
+            throw new InvalidToolArgumentException("write_files supports at most " + MAX_FILES_PER_TOOL_CALL + " files");
         }
         files.forEach(file -> validateWriteFile(file.path(), file.content()));
         log.debug("Tool write_files args: projectId={}, fileCount={}", projectId, files.size());
@@ -111,10 +112,10 @@ public class CodeGenerationTools {
     private WriteFileRequest validateWriteFile(String path, String content) {
         validatePath(path);
         if (content == null) {
-            throw new IllegalArgumentException("file content is required");
+            throw new InvalidToolArgumentException("file content is required");
         }
         if (content.length() > MAX_FILE_CONTENT_CHARS) {
-            throw new IllegalArgumentException("file content is too large: " + normalizePath(path));
+            throw new InvalidToolArgumentException("file content is too large: " + normalizePath(path));
         }
         return new WriteFileRequest(path, content);
     }
@@ -140,10 +141,10 @@ public class CodeGenerationTools {
     private void validatePath(String path) {
         String cleanPath = normalizePath(path);
         if (cleanPath.isBlank()) {
-            throw new IllegalArgumentException("path is required");
+            throw new InvalidToolArgumentException("path is required");
         }
         if (cleanPath.contains("..") || cleanPath.startsWith("~") || cleanPath.contains("\\") || cleanPath.contains(":")) {
-            throw new IllegalArgumentException("path must be a safe project-relative path: " + path);
+            throw new InvalidToolArgumentException("path must be a safe project-relative path: " + path);
         }
     }
 

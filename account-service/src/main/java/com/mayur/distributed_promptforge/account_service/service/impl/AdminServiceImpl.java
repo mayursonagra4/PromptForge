@@ -30,8 +30,8 @@ public class AdminServiceImpl implements AdminService {
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionCacheService subscriptionCacheService;
 
-    // BUG FIX 1: Admin deleteUser — Redis me user ka cached plan entry orphan reh jaati thi.
-    // Ab deleteUser() se pehle subscriptionCacheService.evictPlan(userId) call karte hain.
+    // BUG FIX 1: Admin deleteUser — The user's cached plan entry in Redis would remain orphaned.
+    // Now, subscriptionCacheService.evictPlan(userId) is called before deleteUser().
     @Override
     public void deleteUser(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -42,11 +42,11 @@ public class AdminServiceImpl implements AdminService {
         userRepository.deleteById(userId);
     }
 
-    // BUG FIX 2: Admin updatePlan / deletePlan / activatePlan — Plan DB me change hoti thi
-    // lekin sabhi users ka cached plan Redis me stale rehta tha.
-    // Ab plan mutation ke baad un sabhi users ka cache evict karte hain jinki
-    // active subscription us plan se linked hai.
+    // BUG FIX 2: Admin updatePlan / deletePlan / activatePlan — When a plan was modified in the DB,
+    // the cached plan for all subscribed users in Redis would remain stale.
+    // Now, after plan mutation, the cache is evicted for all users whose active subscription is linked to this plan.
     @Override
+
     public void activatePlan(Long planId, boolean active) {
         Plan plan = planRepository.findById(planId).orElseThrow(() -> new ResourceNotFoundException("Plan", String.valueOf(planId)));
         plan.setActive(active);

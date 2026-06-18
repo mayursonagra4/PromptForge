@@ -1,14 +1,16 @@
 package com.mayur.distributed_promptforge.common_lib.error;
 
-import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 
 @Getter
-@RequiredArgsConstructor
-@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-public class ResourceNotFoundException extends RuntimeException{
-    String resourceName;
-    String resourceId;
+public class ResourceNotFoundException extends RuntimeException {
+    private final String resourceName;
+    private final String resourceId;
+
+    public ResourceNotFoundException(String resourceName, String resourceId) {
+        super(resourceName + " with id " + resourceId + " not found");
+        this.resourceName = resourceName;
+        this.resourceId = resourceId;
+    }
 }
+

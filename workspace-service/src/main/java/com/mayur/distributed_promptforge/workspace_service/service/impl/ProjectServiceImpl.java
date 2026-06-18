@@ -116,16 +116,16 @@ public class ProjectServiceImpl implements ProjectService {
         Long userId = authUtil.getCurrentUserId();
         Project project = getAccessibleProjectById(projectId, userId);
 
-        // Pehle saare project files database metadata delete karo
+        // First delete all project files database metadata
         projectFileRepository.deleteAll(projectFileRepository.findByProjectId(projectId));
 
-        // MinIO physical folder delete karo
+        // Delete MinIO physical folder
         projectFileService.deleteProjectFolder(projectId);
 
-        // Phir saare project members delete karo
+        // Then delete all project members
         projectMemberRepository.deleteAll(projectMemberRepository.findByIdProjectId(projectId));
 
-        // Aakhir mein project khud permanently delete karo
+        // Finally, permanently delete the project itself
         projectRepository.delete(project);
     }
 
