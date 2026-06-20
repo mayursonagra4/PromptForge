@@ -5,6 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 public record ChatRequest(
-        @NotBlank String message,
-        @NotNull @Positive Long projectId
+        @NotBlank(message = "Message is required")
+        String message,
+
+        @NotNull(message = "Project ID is required")
+        @Positive(message = "Project ID must be positive")
+        Long projectId
 ) {}

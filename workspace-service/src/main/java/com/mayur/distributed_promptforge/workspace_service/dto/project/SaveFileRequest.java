@@ -2,8 +2,10 @@ package com.mayur.distributed_promptforge.workspace_service.dto.project;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record ProjectRequest(
-        @NotBlank(message = "Project name is required")
-        String name
+public record SaveFileRequest(
+        @NotBlank(message = "Path is required")
+        String path,
+
+        String content
 ) {
 }

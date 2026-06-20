@@ -4,5 +4,6 @@ import com.mayur.distributed_promptforge.common_lib.enums.ProjectRole;
 import jakarta.validation.constraints.NotNull;
 
 public record UpdateMemberRoleRequest(
-        @NotNull ProjectRole role) {
+        @NotNull(message = "Project role is required")
+        ProjectRole role) {
 }

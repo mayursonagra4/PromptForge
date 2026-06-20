@@ -5,6 +5,7 @@ import com.mayur.distributed_promptforge.account_service.dto.admin.AdminPlanUpse
 import com.mayur.distributed_promptforge.account_service.dto.admin.AdminUserResponse;
 import com.mayur.distributed_promptforge.account_service.dto.subscription.PublicPlanResponse;
 import com.mayur.distributed_promptforge.account_service.service.AdminService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -54,16 +55,17 @@ public class AdminController {
     }
 
     @PostMapping("/plans")
-    public ResponseEntity<Void> createPlan(@RequestBody AdminPlanUpsertRequest request) {
+    public ResponseEntity<Void> createPlan(@Valid @RequestBody AdminPlanUpsertRequest request) {
         adminService.createPlan(request);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/plans/{planId}")
-    public ResponseEntity<Void> updatePlan(@PathVariable Long planId, @RequestBody AdminPlanUpsertRequest request) {
+    public ResponseEntity<Void> updatePlan(@PathVariable Long planId, @Valid @RequestBody AdminPlanUpsertRequest request) {
         adminService.updatePlan(planId, request);
         return ResponseEntity.noContent().build();
     }
+
 
     @DeleteMapping("/plans/{planId}")
     public ResponseEntity<Void> deletePlan(@PathVariable Long planId) {

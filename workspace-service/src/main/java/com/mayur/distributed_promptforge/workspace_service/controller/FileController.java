@@ -1,8 +1,8 @@
 package com.mayur.distributed_promptforge.workspace_service.controller;
 
 import com.mayur.distributed_promptforge.common_lib.dto.FileTreeDto;
-import com.mayur.distributed_promptforge.common_lib.error.BadRequestException;
 import com.mayur.distributed_promptforge.workspace_service.dto.project.FileContentResponse;
+import com.mayur.distributed_promptforge.workspace_service.dto.project.SaveFileRequest;
 import com.mayur.distributed_promptforge.workspace_service.service.ProjectFileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.Map;
 
@@ -38,13 +39,8 @@ public class FileController {
     @PreAuthorize("@security.canEditProject(#p0)")
     public ResponseEntity<Void> saveFile(
             @PathVariable Long projectId,
-            @RequestBody Map<String, String> payload) {
-        String path = payload != null ? payload.get("path") : null;
-        String content = payload != null ? payload.get("content") : null;
-        if (path == null || path.isBlank()) {
-            throw new BadRequestException("path is required");
-        }
-        projectFileService.saveFile(projectId, path, content != null ? content : "");
+            @RequestBody @Valid SaveFileRequest request) {
+        projectFileService.saveFile(projectId, request.path(), request.content() != null ? request.content() : "");
         return ResponseEntity.ok().build();
     }
 

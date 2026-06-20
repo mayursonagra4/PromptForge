@@ -169,22 +169,6 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private void validatePlanRequest(AdminPlanUpsertRequest request, Long currentPlanId) {
-        if (request.name() == null || request.name().isBlank()) {
-            throw new BadRequestException("Plan name is required");
-        }
-        if (request.priceInPaise() == null || request.priceInPaise() < 0) {
-            throw new BadRequestException("Plan price must be zero or greater");
-        }
-        if (request.validityDays() == null || request.validityDays() <= 0) {
-            throw new BadRequestException("Plan validity days must be greater than zero");
-        }
-        if (request.maxProjects() != null && request.maxProjects() < 0) {
-            throw new BadRequestException("Max projects cannot be negative");
-        }
-        if (request.maxTokensPerDay() != null && request.maxTokensPerDay() < 0) {
-            throw new BadRequestException("Max AI tokens per day cannot be negative");
-        }
-
         planRepository.findByNameIgnoreCase(request.name())
                 .filter(existing -> currentPlanId == null || !existing.getId().equals(currentPlanId))
                 .ifPresent(existing -> {

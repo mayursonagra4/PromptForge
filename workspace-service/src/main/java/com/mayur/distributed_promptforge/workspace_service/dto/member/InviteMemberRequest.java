@@ -6,7 +6,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record InviteMemberRequest(
-        @Email @NotBlank String username,
-        @NotNull ProjectRole role
+        @NotBlank(message = "Username/Email is required")
+        @Email(message = "Invalid email format")
+        String username,
+
+        @NotNull(message = "Project role is required")
+        ProjectRole role
 ) {
 }

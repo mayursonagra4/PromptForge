@@ -130,7 +130,7 @@ public class CodeGenerationTools {
                 projectId, cleanPath, preview(content));
 
         try {
-            workspaceClient.saveFile(projectId, Map.of("path", cleanPath, "content", content));
+            workspaceClient.saveFile(projectId, new com.mayur.distributed_promptforge.intelligence_service.client.dto.SaveFileRequest(cleanPath, content));
             return true;
         } catch (Exception ex) {
             log.error("Failed to save file via tool: projectId={}, path={}", projectId, cleanPath, ex);

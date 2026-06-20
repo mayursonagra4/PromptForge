@@ -5,6 +5,7 @@ import com.mayur.distributed_promptforge.common_lib.enums.ProjectPermission;
 import com.mayur.distributed_promptforge.common_lib.error.WorkspaceServiceUnavailableException;
 import com.mayur.distributed_promptforge.intelligence_service.client.WorkspaceClient;
 import org.springframework.stereotype.Component;
+import com.mayur.distributed_promptforge.intelligence_service.client.dto.SaveFileRequest;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,7 @@ public class WorkspaceClientFallback implements WorkspaceClient {
     }
 
     @Override
-    public void saveFile(Long projectId, Map<String, String> payload) {
+    public void saveFile(Long projectId, SaveFileRequest payload) {
         log.error("WorkspaceClientFallback: Workspace Service is down. saveFile failed for projectId={}", projectId);
         throw new WorkspaceServiceUnavailableException("Workspace service currently unavailable");
     }

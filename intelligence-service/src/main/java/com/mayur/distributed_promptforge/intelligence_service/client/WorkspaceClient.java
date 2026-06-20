@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.mayur.distributed_promptforge.intelligence_service.client.fallback.WorkspaceClientFallback;
+import com.mayur.distributed_promptforge.intelligence_service.client.dto.SaveFileRequest;
 import java.util.Map;
 
 @FeignClient(name = "workspace-service", fallback = WorkspaceClientFallback.class)
@@ -30,5 +31,5 @@ public interface WorkspaceClient {
     @PostMapping("/internal/v1/projects/{projectId}/files")
     void saveFile(
             @PathVariable("projectId") Long projectId,
-            @RequestBody Map<String, String> payload);
+            @RequestBody SaveFileRequest payload);
 }
