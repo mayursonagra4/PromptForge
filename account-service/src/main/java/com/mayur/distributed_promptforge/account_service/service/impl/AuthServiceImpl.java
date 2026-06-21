@@ -50,6 +50,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
+        log.info("Attempting login for user: {}", request.username());
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username(), request.password())
         );
@@ -57,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
         JwtUserPrincipal user = (JwtUserPrincipal) authentication.getPrincipal();
         String token = authUtil.generateAccessToken(user);
 
+        log.info("User logged in successfully: {}, principal ID: {}", request.username(), user.userId());
         return new AuthResponse(token, userMapper.toUserProfileResponse(user));
     }
 

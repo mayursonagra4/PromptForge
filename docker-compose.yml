@@ -104,6 +104,19 @@ services:
       exit 0;
       "
 
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: promptforge-zipkin
+    ports:
+      - "9411:9411"
+    environment:
+      - STORAGE_TYPE=mem
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9411"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   kafka-data:
   redis-data:
