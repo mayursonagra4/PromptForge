@@ -20,10 +20,12 @@ Here is a look at what the platform does from a user's perspective:
 - **Workspace Tree Management**: A dedicated service tracks project structures and sends structured directory layouts (file tree) to the frontend.
 - **Direct S3 Object Storage**: All created files are physically written to and read from S3-compatible storage (MinIO), allowing the workspace to support large projects without cluttering local databases.
 - **Physical File Lifecycle Cleanup**: Deleting a project permanently purges the associated folder prefix from the S3 bucket to prevent database-storage mismatches.
+- **Template Safety Rollback**: When template copy operations fail during project initialization, the system automatically rolls back by purging the partially created folder on MinIO to prevent storage leaks.
 
 ### 3. User Identity & Account Security
 - **Secure Onboarding**: User accounts are secured using JWT-based authentication. 
 - **Verification OTPs**: Caches short-lived OTP tokens in Redis to handle email signup verifications and password reset flows safely.
+- **Transactional User Deletion Saga**: Supports secure user deletion by first blocking and soft-deleting the user, triggering asynchronous S3 and workspace database cleanup across microservices via Kafka, and finally hard-deleting the user profile and subscription metadata.
 
 ### 4. Subscription Plans & Razorpay Checkout
 - **Tiered Access Tiers**: Offers Free, Pro, and Enterprise subscription tiers.
@@ -73,6 +75,7 @@ Here is how the services connect, exchange events, and handle client requests.
   - Tracks user roles, plan tiers (Free, Pro, Growth), and enforces daily limit boundaries.
   - Communicates directly with the **Razorpay Payment API** to generate client orders and securely verify webhook payment confirmation signatures.
   - Serves the **Admin Dashboard** APIs to let system admins search user listings, block/unblock accounts, and configure subscription plans.
+  - Acts as the **User Deletion Saga Orchestrator**, initiating deletion requests on `user-deletion-request-event` and consuming response events on `user-deletion-response-event` to finalize deletion and cleanup.
 
 #### 5. Workspace Service (`workspace-service` | Port `9020`)
 - **Role**: Project Workspace & Storage Coordinator.
@@ -80,7 +83,9 @@ Here is how the services connect, exchange events, and handle client requests.
   - Manages workspace directory hierarchies, templates, and collaborator access control.
   - Communicates with **MinIO S3 storage** buckets to read/write generated project files and pack workspace directories into downloadable zip archives.
   - Restricts access rules (`canViewProject`, `canEditProject`) before allowing code views or write operations.
-  - Functions as a **Saga Participant**, consuming code edits from Kafka, writing changes to S3 storage, and broadcasting status receipts.
+  - Functions as a **Saga Participant**, consuming code edits from Kafka (`file-storage-request-event`), writing changes to S3, and broadcasting status receipts.
+  - Consumes deletion requests on `user-deletion-request-event` to purge database metadata and MinIO project storage directories for deleted users, replying back to the orchestrator.
+  - Implements compensating fallback deletes in `ProjectTemplateServiceImpl` to prevent storage leaks if template instantiation fails.
 
 #### 6. Intelligence Service (`intelligence-service` | Port `9030`)
 - **Role**: LLM Handler & Saga Orchestrator.
@@ -94,7 +99,7 @@ Here is how the services connect, exchange events, and handle client requests.
 - **Role**: Shared Utility & Domain Library.
 - **Responsibilities**:
   - Centralizes domain DTOs (e.g. `UserDto`, `PlanDto`, `FileTreeDto`, `UsageSnapshotDto`) and permission enums (`ProjectPermission`, `ProjectRole`) to ensure strict compile-time interface compatibility for OpenFeign bindings.
-  - Defines the core Kafka event schemas (`FileStoreRequestEvent`, `FileStoreResponseEvent`) used during Saga code-writing transactions.
+  - Defines the core Kafka event schemas (`FileStoreRequestEvent`, `FileStoreResponseEvent`, `UserDeletionRequestEvent`, `UserDeletionResponseEvent`, `EmailEvent`) used during distributed transactions and events.
   - Implements the centralized REST Controller Advice (`GlobalExceptionHandler`) to provide consistent error responses across all services and block stack trace leaks.
   - Exposes the shared security helper (`AuthUtil`) to extract authenticated context (user IDs) from gateway-forwarded JWT requests uniformly.
 
@@ -105,14 +110,26 @@ Here is how the services connect, exchange events, and handle client requests.
 ## 🛠️ Resiliency and System Patterns
 
 ### 1. Asynchronous Saga Pattern (Transactional Outbox)
-When a user asks the AI to edit code, the platform must guarantee that database records (chat logs) and physical file writes (in MinIO) stay consistent. PromptForge solves this using an asynchronous Saga flow with a Transactional Outbox:
+The platform ensures distributed data consistency across multiple databases and object storage buckets using asynchronous Saga flows:
+
+#### Flow A: AI Code Generation & File Storage (Outbox Pattern)
+When a user asks the AI to edit code, the platform must guarantee that database records (chat logs) and physical file writes (in MinIO) stay consistent:
 - **Write Consistency**: When file changes are generated, `intelligence-service` saves the messages and a `PENDING` chat event within a local DB transaction. 
 - **Outbox Publishing**: It publishes a `FileStoreRequestEvent` to Kafka **only after** the database transaction commits successfully.
 - **Idempotent Storage**: `workspace-service` consumes the message, checks its processed idempotency list to avoid double-processing, writes the files to MinIO, and publishes a `FileStoreResponseEvent` back to Kafka.
 - **State Transition**: `intelligence-service` consumes this response and marks the saga `CONFIRMED` or `FAILED`.
 - **Auto-Recovery Sweep**: If a network failure stalls the message flow, a background task (`SagaCleanupScheduler`) sweeps the database every minute and fails any pending events older than 5 minutes to release system resources.
 
-### 2. Resilience4j Circuit Breakers
+#### Flow B: Distributed User Deletion
+When an administrator deletes a user, the system triggers a Saga to clean up resources across services:
+- **Phase 1 (Block & Request)**: `account-service` blocks/soft-deletes the user, evicts their active Redis plan cache, and publishes a `UserDeletionRequestEvent` to Kafka.
+- **Phase 2 (Workspace Cleanup)**: `workspace-service` consumes the request event, searches for project memberships, deletes metadata from the database, deletes the physical S3 project directory in MinIO, and publishes a `UserDeletionResponseEvent` with status (success/failure).
+- **Phase 3 (Permanent Removal)**: `account-service` consumes the response. If cleanup succeeded, it deletes the user's subscription history to satisfy foreign key constraints and permanently hard-deletes the user.
+
+### 2. Project Template Rollback
+When template copy operations fail during project instantiation from a template, `ProjectTemplateServiceImpl` executes compensating rollback logic, deleting any partially copied files from MinIO to prevent storage leaks.
+
+### 3. Resilience4j Circuit Breakers
 To prevent a single service outage from bringing down the entire platform, all OpenFeign calls are wrapped with Resilience4j circuit breakers:
 - **Workspace -> Account**: If the account service fails, project limits default to a standard `FREE` plan limit (5 projects) so users can still create workspaces.
 - **Intelligence -> Workspace**: If the workspace service goes offline during an AI stream, the AI chat falls back to returning a `"Workspace service unavailable"` warning instead of terminating the conversation.
