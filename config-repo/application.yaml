@@ -56,5 +56,8 @@ resilience4j:
         waitDuration: 1s
 
 logging:
+  level:
+    org.hibernate: WARN
+    org.apache.kafka: WARN
   pattern:
     console: "%green(%d{HH:mm:ss.SSS}) %blue(%-5level) %red([%thread]) %cyan([${spring.application.name:-},%X{traceId:-},%X{spanId:-}]) %yellow(%logger{15}) - %msg%n"

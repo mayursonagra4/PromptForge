@@ -3,7 +3,7 @@ server:
 
 app:
   ai:
-    retry-count: 2
+    retry-count: 3
 
 spring:
   ai:
