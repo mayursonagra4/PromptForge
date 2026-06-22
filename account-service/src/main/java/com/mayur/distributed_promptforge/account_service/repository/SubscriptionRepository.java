@@ -26,4 +26,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     // BUG FIX SUPPORT: Used by AdminServiceImpl to evict Redis cache for all users on a given plan
     // when the plan is updated, activated/deactivated, or deleted.
     List<Subscription> findAllByPlanId(Long planId);
+
+    void deleteByUserId(Long userId);
 }

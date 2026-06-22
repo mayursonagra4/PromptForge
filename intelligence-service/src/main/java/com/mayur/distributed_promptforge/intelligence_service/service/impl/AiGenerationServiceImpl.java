@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.mayur.distributed_promptforge.common_lib.dto.FileNode;
 import com.mayur.distributed_promptforge.common_lib.enums.ChatEventStatus;
@@ -66,6 +67,9 @@ public class AiGenerationServiceImpl implements AiGenerationService {
     private final WorkspaceClient workspaceClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final TransactionTemplate transactionTemplate;
+
+    @Value("${app.ai.retry-count:2}")
+    private int aiRetryCount;
 
     @Override
     @PreAuthorize("@security.canEditProject(#p1)")
@@ -125,7 +129,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                      .chatResponse();
          })
                 .retryWhen(
-                        Retry.backoff(2, Duration.ofSeconds(2))
+                        Retry.backoff(aiRetryCount, Duration.ofSeconds(2))
                                 .maxBackoff(Duration.ofSeconds(8))
                                 .filter(this::isRetryableTransientError)
                                 .doBeforeRetry(signal -> log.warn(

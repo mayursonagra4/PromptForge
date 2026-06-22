@@ -18,28 +18,46 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import com.mayur.distributed_promptforge.common_lib.event.UserDeletionRequestEvent;
+import org.springframework.kafka.core.KafkaTemplate;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.List;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AdminServiceImpl implements AdminService {
 
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionCacheService subscriptionCacheService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     // BUG FIX 1: Admin deleteUser — The user's cached plan entry in Redis would remain orphaned.
     // Now, subscriptionCacheService.evictPlan(userId) is called before deleteUser().
     @Override
     public void deleteUser(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("User", String.valueOf(userId));
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", String.valueOf(userId)));
+
         // Evict cached plan before deleting user so stale data is not served
         subscriptionCacheService.evictPlan(userId);
-        userRepository.deleteById(userId);
+
+        // Soft delete and block user immediately
+        user.setBlocked(true);
+        user.setDeletedAt(java.time.Instant.now());
+        userRepository.save(user);
+
+        try {
+            kafkaTemplate.send("user-deletion-request-event", String.valueOf(userId), new UserDeletionRequestEvent(userId));
+            log.info("Published UserDeletionRequestEvent to Kafka for userId={}", userId);
+        } catch (Exception e) {
+            log.error("Failed to publish UserDeletionRequestEvent to Kafka for userId={}: {}", userId, e.getMessage(), e);
+            throw new BadRequestException("Failed to publish user deletion request event to Kafka: " + e.getMessage());
+        }
     }
 
     // BUG FIX 2: Admin updatePlan / deletePlan / activatePlan — When a plan was modified in the DB,
@@ -111,6 +129,7 @@ public class AdminServiceImpl implements AdminService {
     public List<AdminUserResponse> getUsers(String query) {
         List<User> users = (query == null || query.isBlank()) ? userRepository.findAll() : userRepository.search(query);
         return users.stream()
+                .filter(u -> u.getDeletedAt() == null)
                 .map(u -> new AdminUserResponse(u.getId(), u.getUsername(), u.getName(), u.getRole(), u.getBlocked()))
                 .toList();
     }

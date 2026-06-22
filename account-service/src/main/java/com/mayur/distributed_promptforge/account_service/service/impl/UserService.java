@@ -26,6 +26,10 @@ public class UserService implements UserDetailsService {
         User user = userRepository.findByUsernameIgnoreCase(username.trim())
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + username));
 
+        if (user.getDeletedAt() != null) {
+            throw new UserNotFoundException("User not found or has been deleted: " + username);
+        }
+
         if (Boolean.TRUE.equals(user.getBlocked())) {
             throw new UserBlockedException("User account is blocked");
         }

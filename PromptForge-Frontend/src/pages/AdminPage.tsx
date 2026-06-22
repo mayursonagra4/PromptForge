@@ -55,6 +55,7 @@ export default function AdminPage() {
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PublicPlanResponse | null>(null);
   const [planToDelete, setPlanToDelete] = useState<PublicPlanResponse | null>(null);
+  const [userToDelete, setUserToDelete] = useState<AdminUserResponse | null>(null);
   const [planForm, setPlanForm] = useState<AdminPlanUpsertRequest>(DEFAULT_PLAN_FORM);
 
   const paidPlanCount = useMemo(
@@ -334,19 +335,7 @@ export default function AdminPage() {
                           <Button
                             variant="outline"
                             className="border-red-900 text-red-300 hover:bg-red-950 hover:text-red-200"
-                            onClick={async () => {
-                              try {
-                                await api.deleteAdminUser(user.id);
-                                toast({ title: "User removed", description: `${user.name} deleted successfully.` });
-                                await load(query);
-                              } catch (error) {
-                                toast({
-                                  title: "Delete failed",
-                                  description: error instanceof Error ? error.message : "Please try again.",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
+                            onClick={() => setUserToDelete(user)}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
@@ -600,6 +589,43 @@ export default function AdminPage() {
               }}
             >
               Remove plan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(userToDelete)} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent className="border-slate-800 bg-slate-950 text-slate-50">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              This action will block the user {userToDelete?.name} ({userToDelete?.username}) immediately and initiate a distributed cleanup process to permanently delete their workspaces, project memberships, and physical storage files. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-500"
+              onClick={async () => {
+                if (!userToDelete) return;
+
+                try {
+                  await api.deleteAdminUser(userToDelete.id);
+                  toast({ title: "User removed", description: `${userToDelete.name} deletion process started.` });
+                  setUserToDelete(null);
+                  await load(query);
+                } catch (error) {
+                  toast({
+                    title: "Delete failed",
+                    description: error instanceof Error ? error.message : "Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              Delete User
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -28,6 +28,7 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
     private final MinioClient minioClient;
     private final ProjectFileRepository projectFileRepository;
     private final ProjectRepository projectRepository;
+    private final com.mayur.distributed_promptforge.workspace_service.service.ProjectFileService projectFileService;
 
     private static final String TEMPLATE_BUCKET = "templates";
     private static final String TEMPLATE_NAME = "react-vite-tailwind-daisyui-starter";
@@ -87,6 +88,12 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
             log.info("Template initialized and file tree cache evicted for projectId={}", projectId);
 
         } catch (Exception e) {
+            log.error("Failed to initialize project from template. Cleaning up MinIO files for projectId={}", projectId, e);
+            try {
+                projectFileService.deleteProjectFolder(projectId);
+            } catch (Exception cleanupEx) {
+                log.error("MinIO cleanup failed during template initialization rollback for projectId={}", projectId, cleanupEx);
+            }
             throw new TemplateInitializationException("Failed to initialize project from template", e);
         }
     }

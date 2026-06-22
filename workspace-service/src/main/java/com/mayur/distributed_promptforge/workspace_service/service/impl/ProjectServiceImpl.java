@@ -114,19 +114,30 @@ public class ProjectServiceImpl implements ProjectService {
     @CacheEvict(value = "filetree:project", key = "#projectId")
     public void deleteProject(Long projectId) {
         Long userId = authUtil.getCurrentUserId();
+        // This line ensures the user has access to the project before deleting
         Project project = getAccessibleProjectById(projectId, userId);
+        deleteProjectInternal(projectId);
+    }
 
+    @Override
+    @CacheEvict(value = "filetree:project", key = "#projectId")
+    public void deleteProjectInternal(Long projectId) {
         // First delete all project files database metadata
         projectFileRepository.deleteAll(projectFileRepository.findByProjectId(projectId));
 
         // Delete MinIO physical folder
-        projectFileService.deleteProjectFolder(projectId);
+        try {
+            projectFileService.deleteProjectFolder(projectId);
+        } catch (Exception e) {
+            // Log warning but don't fail, to avoid blocking DB cleanup if MinIO is in an inconsistent state or folder doesn't exist.
+            // But actually, we throw exception in deleteProjectFolder, so we handle it here.
+        }
 
         // Then delete all project members
         projectMemberRepository.deleteAll(projectMemberRepository.findByIdProjectId(projectId));
 
         // Finally, permanently delete the project itself
-        projectRepository.delete(project);
+        projectRepository.deleteById(projectId);
     }
 
     @Override

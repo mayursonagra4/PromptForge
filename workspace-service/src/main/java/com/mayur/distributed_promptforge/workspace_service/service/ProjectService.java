@@ -18,6 +18,8 @@ public interface ProjectService {
 
     void deleteProject(Long projectId);
 
+    void deleteProjectInternal(Long projectId);
+
     boolean hasPermission(Long projectId, ProjectPermission permission);
 
     boolean hasPermission(Long projectId, Long userId, ProjectPermission permission);
