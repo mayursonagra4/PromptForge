@@ -18,10 +18,8 @@ public class Plan {
 
     String name;
 
-    @Column(unique = true)
-    String stripePriceId;
-
     // Razorpay fields
+    @Column(unique = true)
     String razorpayPlanId;
     Long priceInPaise; // Price in smallest currency unit (paise for INR)
 

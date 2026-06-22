@@ -33,7 +33,7 @@ public class Subscription {
     @Enumerated(value = EnumType.STRING)
     SubscriptionStatus status;
 
-    String stripeSubscriptionId; // Stripe subscription ID
+    @Column(unique = true)
     String razorpaySubscriptionId; // Razorpay subscription/order ID
 
     Instant currentPeriodStart;

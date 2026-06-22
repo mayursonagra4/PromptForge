@@ -119,7 +119,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     @Override
     public void activateSubscription(Long userId, Long planId, String subscriptionId, String customerId) {
-        boolean exists = subscriptionRepository.existsByStripeSubscriptionId(subscriptionId);
+        boolean exists = subscriptionRepository.existsByRazorpaySubscriptionId(subscriptionId);
         if (exists) return;
 
         User user = getUser(userId);
@@ -128,7 +128,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         Subscription subscription = Subscription.builder()
                 .user(user)
                 .plan(plan)
-                .stripeSubscriptionId(subscriptionId)
+                .razorpaySubscriptionId(subscriptionId)
                 .status(SubscriptionStatus.ACTIVE)
                 .currentPeriodStart(Instant.now())
                 .currentPeriodEnd(calculatePeriodEnd(plan, Instant.now()))
@@ -346,7 +346,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     private Subscription getSubscription(String gatewaySubscriptionId) {
-        return subscriptionRepository.findByStripeSubscriptionId(gatewaySubscriptionId)
+        return subscriptionRepository.findByRazorpaySubscriptionId(gatewaySubscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription", gatewaySubscriptionId));
     }
 

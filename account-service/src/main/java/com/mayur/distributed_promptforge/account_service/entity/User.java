@@ -37,10 +37,8 @@ public class User {
     String passwordResetCode;
     Instant passwordResetCodeExpiresAt;
 
-    @Column(unique = true)
-    String stripeCustomerId;
-
     // Razorpay
+    @Column(unique = true)
     String razorpayCustomerId;
 
     @CreationTimestamp
