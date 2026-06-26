@@ -9,6 +9,11 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.annotation.DltHandler;
+import org.springframework.kafka.annotation.BackOff;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -24,30 +29,35 @@ public class FileStorageConsumer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Transactional
+    @RetryableTopic(
+            attempts = "3",
+            backOff = @BackOff(delay = 2000, multiplier = 2.0),
+            autoCreateTopics = "true"
+    )
     @KafkaListener(topics = "file-storage-request-event", groupId = "workspace-group")
     public void consumeFileEvent(FileStoreRequestEvent requestEvent) {
 
-        // Idempotency check
         if (processedEventRepository.existsById(requestEvent.sagaId())) {
             log.info("Duplicate Saga detected: {}. Resending previous ACK.", requestEvent.sagaId());
             sendResponse(requestEvent, true, null);
             return;
         }
 
-        try {
-            log.info("Saving file: {}", requestEvent.filePath());
+        log.info("Saving file: {}", requestEvent.filePath());
+        projectFileService.saveFile(requestEvent.projectId(), requestEvent.filePath(), requestEvent.content());
 
-            projectFileService.saveFile(requestEvent.projectId(), requestEvent.filePath(), requestEvent.content());
-            processedEventRepository.save(new ProcessedEvent(
-                    requestEvent.sagaId(), LocalDateTime.now()
-            ));
+        processedEventRepository.save(new ProcessedEvent(
+                requestEvent.sagaId(), LocalDateTime.now()
+        ));
 
-            sendResponse(requestEvent, true, null);
-        } catch (Exception e) {
-            log.error("Error saving file: {}", e.getMessage());
-            sendResponse(requestEvent, false, e.getMessage());
-        }
+        sendResponse(requestEvent, true, null);
+    }
 
+    @DltHandler
+    public void handleDlt(FileStoreRequestEvent requestEvent, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        log.error("Failed to store file after all retries in DLT (topic={}): path={}, sagaId={}",
+                topic, requestEvent.filePath(), requestEvent.sagaId());
+        sendResponse(requestEvent, false, "Storage failed after maximum retries");
     }
 
     private void sendResponse(FileStoreRequestEvent req, boolean success, String error) {
