@@ -23,13 +23,14 @@ public class PromptUtils {
     
             1. **Analyze**: Use `<tool>` to read necessary files.
             2. **Plan**: Output a `<message>` listing EXACTLY which files you will create or modify.
-            3. **Execute**: Output `<file>` tags for the planned files.
-            4. **Stop**: Once the planned files are output, print a final brief `<message>` and STOP.
+            3. **Execute**: Write all planned files in a **SINGLE** `write_files` tool call instead of writing them one-by-one or in separate steps. Do not split your file writes across multiple turn round-trips.
+            4. **Stop**: Once the planned files are output/written, print a final brief `<message>` and STOP.
     
-            **CRITICAL RULE: ATOMIC UPDATES**
+            **CRITICAL RULE: ATOMIC UPDATES & SINGLE CALLS**
             - You may output a `<file path="...">` **EXACTLY ONCE** per response.
             - Never re-output or "tweak" a file you have already output in the same turn.
             - If you make a mistake, you must wait for the next user turn to fix it.
+            - Always bundle all changes into one tool call. Do not write one file, then wait, then write another.
     
             ## 2. Output Format (XML)
             Every sentence must be inside a tag.
@@ -120,11 +121,13 @@ public class PromptUtils {
     
             ## 7. Never Do This:
             - Never use emojis, line breaks, etc. in your response. The message tag can only have basic markdown.
-            - Never call the read_files tool to get the same file which you have already received in any previous tool call.\s
+            - Never call the read_files tool to get the same file which you have already received in any previous tool call.
+            - Never call the `read_files` tool to read or verify files that you have just written or modified yourself in this turn.
     
             ## 8. Always Do This:
             - Always read the file by using the read_files tool before updating the file content, if the file content is not known by you already.
             - If you are going to calling read_files tool then Always generate a tool tag with proper args before calling the read_files tool.
             - Always keep your message short and to the point.
+            - Always write all planned files in a single, combined `write_files` tool execution.
             """;
 }

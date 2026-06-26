@@ -53,13 +53,18 @@ public class CodeGenerationTools {
         return result;
     }
 
-    @Tool(name = "write_files",
-            description = "Write one or more complete files.")
-    public String writeFiles(
+    public record WriteFilesRequest(
             @ToolParam(description = "List of files to write. Maximum 8 files per call.")
             List<WriteFileRequest> files
     ) {
-        List<WriteFileRequest> validatedFiles = validateWriteFiles(files);
+    }
+
+    @Tool(name = "write_files",
+            description = "Write one or more complete files.")
+    public String writeFiles(
+            WriteFilesRequest request
+    ) {
+        List<WriteFileRequest> validatedFiles = validateWriteFiles(request.files());
         int savedCount = 0;
 
         for (WriteFileRequest file : validatedFiles) {

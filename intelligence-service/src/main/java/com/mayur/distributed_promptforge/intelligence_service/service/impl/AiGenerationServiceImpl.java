@@ -120,8 +120,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
              streamUsage.set(null);
 
              return chatClient.prompt()
-                     .system(PromptUtils.CODE_GENERATION_SYSTEM_PROMPT)
-                     .system(systemPrompt)
+                     .system(PromptUtils.CODE_GENERATION_SYSTEM_PROMPT + systemPrompt)
                      .messages(chatHistory)
                      .user(userMessage)
                      .tools(codeGenerationTools)
