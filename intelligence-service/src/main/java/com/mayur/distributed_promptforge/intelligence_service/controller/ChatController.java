@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.beans.factory.annotation.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.Disposable;
 
@@ -33,9 +34,12 @@ public class ChatController {
     private final AiGenerationService aiGenerationService;
     private final ChatService chatService;
 
+    @Value("${app.chat.sse-timeout-minutes:5}")
+    private Long sseTimeoutMinutes;
+
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(@RequestBody @Valid ChatRequest request) {
-        SseEmitter emitter = new SseEmitter(5 * 60 * 1000L); // 5 min timeout
+        SseEmitter emitter = new SseEmitter(sseTimeoutMinutes * 60 * 1000L);
         AtomicBoolean streamClosed = new AtomicBoolean(false);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String principal = authentication != null ? String.valueOf(authentication.getPrincipal()) : "anonymous";

@@ -3,7 +3,9 @@ server:
 
 app:
   ai:
-    retry-count: 3
+    retry-count: 2
+  chat:
+    sse-timeout-minutes: 7
 
 spring:
   ai:
