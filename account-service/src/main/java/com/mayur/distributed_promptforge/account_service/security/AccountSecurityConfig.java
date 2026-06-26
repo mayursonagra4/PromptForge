@@ -1,5 +1,6 @@
 package com.mayur.distributed_promptforge.account_service.security;
 
+import com.mayur.distributed_promptforge.common_lib.security.InternalSecretFilter;
 import com.mayur.distributed_promptforge.common_lib.security.JwtAuthFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class AccountSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final InternalSecretFilter internalSecretFilter;
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -36,9 +38,11 @@ public class AccountSecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/auth/signup/**", "/auth/login", "/auth/verify-email", "/auth/resend-verification", "/auth/forgot-password", "/auth/reset-password", "/auth/verify-reset-code").permitAll()
-                        .requestMatchers("/webhooks/**", "/actuator/**", "/internal/**").permitAll()
+                        .requestMatchers("/webhooks/**", "/actuator/**").permitAll()
+                        .requestMatchers("/internal/**").hasRole("INTERNAL_SERVICE")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(internalSecretFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {

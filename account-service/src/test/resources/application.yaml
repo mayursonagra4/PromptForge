@@ -38,8 +38,8 @@ jwt:
 
 razorpay:
   key:
-    id: ${RAZORPAY_KEY_ID}
-    secret: ${RAZORPAY_KEY_SECRET}
+    id: ${RAZORPAY_KEY_ID:}
+    secret: ${RAZORPAY_KEY_SECRET:}
 
 app:
   frontend:

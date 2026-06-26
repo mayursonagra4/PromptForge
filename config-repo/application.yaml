@@ -23,6 +23,10 @@ management:
 jwt:
   secret: PromptForge-jwt-secret-key-for-distributed-system-2026-secure-token-generation
 
+app:
+  security:
+    internal-secret: pf-internal-secret-token-2026-very-secure-keys
+
 spring:
   cloud:
     openfeign:

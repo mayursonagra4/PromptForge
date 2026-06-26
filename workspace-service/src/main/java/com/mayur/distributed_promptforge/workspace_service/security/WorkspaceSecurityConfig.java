@@ -1,5 +1,6 @@
 package com.mayur.distributed_promptforge.workspace_service.security;
 
+import com.mayur.distributed_promptforge.common_lib.security.InternalSecretFilter;
 import com.mayur.distributed_promptforge.common_lib.security.JwtAuthFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class WorkspaceSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final InternalSecretFilter internalSecretFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
@@ -28,9 +30,12 @@ public class WorkspaceSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers("/actuator/**", "/internal/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/internal/v1/previews/**").permitAll()
+                        .requestMatchers("/internal/**").hasRole("INTERNAL_SERVICE")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(internalSecretFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
