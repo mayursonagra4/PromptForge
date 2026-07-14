@@ -23,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.mayur.distributed_promptforge.account_service.service.OtpCacheService;
+import com.mayur.distributed_promptforge.account_service.service.OtpRateLimiter;
 
 import java.util.ArrayList;
 
@@ -40,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     JwtBlacklistService jwtBlacklistService;
     EmailService emailService;
     OtpCacheService otpCacheService;
+    OtpRateLimiter otpRateLimiter;
     KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
@@ -69,12 +71,21 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
+        if (request.email() == null) {
+            throw new BadRequestException("Email is required");
+        }
+        otpRateLimiter.checkAndSetLimit(request.email());
+
         if (!emailService.isEmailValid(request.email())) {
+            otpRateLimiter.clearLimit(request.email());
             throw new BadRequestException("Email can not be sent. '" + request.email() + "' does not exist or is incorrect. Please enter a correct email address.");
         }
 
         User user = userRepository.findByUsernameIgnoreCase(request.email().trim())
-                .orElseThrow(() -> new BadRequestException("No account found for email: " + request.email() + ". Please check the address or sign up."));
+                .orElseThrow(() -> {
+                    otpRateLimiter.clearLimit(request.email());
+                    return new BadRequestException("No account found for email: " + request.email() + ". Please check the address or sign up.");
+                });
 
         String otp = generateOtp();
         user.setPasswordResetCode(otp);
@@ -89,6 +100,7 @@ public class AuthServiceImpl implements AuthService {
             user.setPasswordResetCode(null);
             user.setPasswordResetCodeExpiresAt(null);
             userRepository.save(user);
+            otpRateLimiter.clearLimit(request.email());
             throw new BadRequestException("We could not send the reset email. Please try again later.");
         }
     }
@@ -128,11 +140,18 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void sendSignupOtp(SignupOtpRequest request) {
+        if (request.email() == null) {
+            throw new BadRequestException("Email is required");
+        }
+        otpRateLimiter.checkAndSetLimit(request.email());
+
         if (!emailService.isEmailValid(request.email())) {
+            otpRateLimiter.clearLimit(request.email());
             throw new BadRequestException("Email can not be sent. '" + request.email() + "' does not exist or is incorrect. Please enter a correct email address.");
         }
 
         userRepository.findByUsernameIgnoreCase(request.email().trim()).ifPresent(user -> {
+            otpRateLimiter.clearLimit(request.email());
             throw new BadRequestException("An account already exists with email: " + request.email());
         });
 
@@ -144,6 +163,7 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             log.error("OTP email delivery failed for signup (email={}): {}", request.email(), e.getMessage());
             otpCacheService.deleteSignupOtp(request.email().toLowerCase());
+            otpRateLimiter.clearLimit(request.email());
             throw new BadRequestException("We could not send the verification email. Please check the address and try again.");
         }
     }
